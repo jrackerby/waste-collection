@@ -1,0 +1,111 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Waste Collection",
+        "description": "Adds the collection routes and the receptacle inventory. Set each stream's pickup day afterwards under Configure, and add bins with Add receptacle."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Waste Collection is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "trash": {
+        "title": "Trash schedule",
+        "description": "Leave a field empty if you do not know it yet. Nothing is guessed: with no pickup day the next-pickup sensor stays unknown and says why, rather than showing a date nobody chose.",
+        "data": {
+          "weekday": "Pickup day",
+          "cadence": "How often",
+          "anchor": "A date it was collected"
+        },
+        "data_description": {
+          "anchor": "Only used for every-other-week, to fix which week is the on week. Any date the truck actually came will do."
+        }
+      },
+      "recycling": {
+        "title": "Recycling schedule",
+        "description": "Same again for recycling. Every-other-week recycling is common where trash is weekly.",
+        "data": {
+          "weekday": "Pickup day",
+          "cadence": "How often",
+          "anchor": "A date it was collected"
+        },
+        "data_description": {
+          "anchor": "Only used for every-other-week, to fix which week is the on week. Any date the truck actually came will do."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "receptacle": {
+      "title": "Receptacle",
+      "step": {
+        "add": {
+          "title": "Add a receptacle",
+          "description": "A bin somewhere in the house. It gets its own device, so you can assign it to an area afterwards the same way as any other device.",
+          "data": {
+            "name": "Name",
+            "stream": "Stream"
+          }
+        },
+        "reconfigure": {
+          "title": "Edit receptacle",
+          "data": {
+            "name": "Name",
+            "stream": "Stream"
+          }
+        }
+      },
+      "entry_type": "Receptacle",
+      "initiate_flow": {
+        "user": "Add receptacle"
+      }
+    }
+  },
+  "selector": {
+    "weekday": {
+      "options": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    },
+    "cadence": {
+      "options": {
+        "weekly": "Every week",
+        "biweekly": "Every other week"
+      }
+    },
+    "stream": {
+      "options": {
+        "trash": "Trash",
+        "recycling": "Recycling"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_pickup": { "name": "Next pickup" },
+      "last_collected": { "name": "Last collected" },
+      "last_emptied": { "name": "Last emptied" },
+      "active_receptacles": { "name": "Active receptacles" }
+    },
+    "binary_sensor": {
+      "setout_due": { "name": "Set out due" }
+    },
+    "switch": {
+      "cart_out": { "name": "Cart at curb" },
+      "has_waste": { "name": "Has waste" }
+    },
+    "button": {
+      "collected": { "name": "Collected" },
+      "emptied": { "name": "Emptied" }
+    }
+  }
+}
