@@ -54,7 +54,8 @@ to observe.
 The test suite runs with Home Assistant **absent**, which is what makes that
 claim real rather than documentary: any core import creeping into `const.py` or
 `resolver.py` fails collection on the commit that adds it. `validate.yml`'s
-`imports` job covers the other half — the real layout against real core.
+`imports` job covers the other half — the real layout against real core, on
+Python 3.14, which is what Home Assistant 2026.x requires (`>=3.14.2`).
 
 Everything is `datetime.date`. The TypeScript this was ported from had to round
 its day arithmetic, because a DST boundary makes one span 23 hours and another

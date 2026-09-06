@@ -83,7 +83,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          # 3.14, NOT 3.13. Home Assistant 2026.x declares
+          # Requires-Python >=3.14.2, so on 3.13 pip silently FILTERS OUT every
+          # 2026 release and then reports "no matching distribution" for a
+          # version that plainly exists -- which reads as a bad pin rather than
+          # a wrong interpreter. Measured on this job's first run.
+          python-version: "3.14"
 
       # Pinned to the floor hacs.json declares, not to latest: this asserts the
       # integration imports on the OLDEST core it claims to support. A newer
@@ -91,6 +96,20 @@ jobs:
       - name: install the core version hacs.json claims support for
         run: |
           set -euo pipefail
+          # Assert the interpreter BEFORE pip, so a runner image without a new
+          # enough 3.14 fails saying that, rather than as a confusing
+          # "no matching distribution" for a version that exists.
+          python - <<'PY'
+          import sys
+          need = (3, 14, 2)
+          if sys.version_info[:3] < need:
+              raise SystemExit(
+                  f"CANNOT RUN: Home Assistant 2026.x needs Python >= {'.'.join(map(str, need))}, "
+                  f"this runner has {sys.version.split()[0]} -- pip would filter every 2026 "
+                  "release and report a misleading 'no matching distribution'"
+              )
+          print(f"python {sys.version.split()[0]} satisfies core's Requires-Python")
+          PY
           FLOOR="$(python -c 'import json;print(json.load(open("hacs.json"))["homeassistant"])')"
           echo "hacs.json floor: $FLOOR"
           pip install "homeassistant==$FLOOR"
