@@ -1,17 +1,13 @@
-> **SUPERSEDED — DO NOT DEVELOP HERE.**
-> This integration lives in [jrackerby/HA](https://github.com/jrackerby/HA) at
-> `custom_components/waste_collection`, in-tree rather than submoduled, per
-> jrackerby/HA#610 and the GH-605 precedent. This repo is the pre-move history
-> and nothing more. A change made here reaches no Home Assistant instance and
-> will drift silently against the tree that does (jrackerby/HA LAW.md §1).
+> **THIS BRANCH IS BEHIND THE CODE THAT ACTUALLY RUNS.** For a period this
+> integration was developed outside this repository, and that copy moved on:
+> it is at `0.2.0` with `services.py`, `services.yaml` and `schedule_options.py`
+> that are not here yet. Do not install from this repository until that history
+> has been reconciled back onto `master`.
 
 # Waste Collection
 
 A Home Assistant integration for the household's waste: where the bins are,
 which ones are holding waste, and when each stream is collected.
-
-Built for [jrackerby/HA](https://github.com/jrackerby/HA) and submoduled there
-as `custom_components/waste_collection`. Tracked in jrackerby/HA#610.
 
 ## What it publishes
 
@@ -53,7 +49,7 @@ for a Wednesday route.
 ## Design
 
 `resolver.py` holds every date answer and **imports nothing from
-`homeassistant`** (LAW §11). It also takes no clock — `today` is always passed
+`homeassistant`**. It also takes no clock — `today` is always passed
 in, because a function that reads the clock cannot be tested by inspection, and
 "is the truck coming tomorrow" is exactly the question nobody can wait around
 to observe.
