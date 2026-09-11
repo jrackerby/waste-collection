@@ -1,0 +1,142 @@
+# Self-assessment against the Home Assistant integration quality scale.
+#
+# LAW.md §15 makes the scale this estate's build standard, and TOOLS.md records
+# why this file is the only gate there is: hassfest's `validate_iqs_file` opens
+# with `if not integration.core: return`, so a custom component is never checked
+# against the scale, and a `quality_scale` key in the manifest is a self-claim
+# with nothing behind it. No such key is declared in manifest.json.
+#
+# The 54 rule names below were read from ALL_RULES in core's
+# script/hassfest/quality_scale.py on the commit that added this file, not
+# copied from a sibling component -- the docs page names the tiers and not the
+# rules. tempest_wx's copy carried all 54; yard_maintenance's dropped
+# docs-use-cases somewhere in the second hop, which is what a derived copy
+# does. Re-read ALL_RULES rather than this file when writing the next one.
+#
+# Honest `todo`s. A rule marked `done` here has actually been done.
+
+rules:
+  # --- Bronze ---
+  action-setup: done
+  # ^ NO LONGER VACUOUS. GH-618 added `set_schedule`, and it is registered in
+  #   `async_setup` rather than `async_setup_entry` exactly as this rule asks:
+  #   an action registered per-entry vanishes while the entry reloads, so the
+  #   wall panel that calls it would get "service not found" instead of an
+  #   answer. `services._entry()` resolves the entry at CALL time and raises a
+  #   translated ServiceValidationError when there is none.
+  appropriate-polling: done
+  # ^ Five minutes, and it polls nothing. The only input that moves on its own
+  #   is the clock, and every derived answer -- next_pickup, days_until,
+  #   setout_due -- turns over at midnight with no state change to trigger it.
+  #   The interval is a midnight-rollover latency budget, not a device poll;
+  #   see coordinator.py's header.
+  brands: todo  # no icon/logo submitted to home-assistant/brands; private integration
+  common-modules: done  # coordinator.py, entity.py
+  config-flow: done
+  config-flow-test-coverage: todo  # needs pytest-homeassistant-custom-component
+  dependency-transparency: done  # no third-party requirements at all
+  docs-actions: done  # README.md documents set_schedule and what it refuses
+  docs-conditions: done  # none provided
+  docs-triggers: done  # none provided
+  docs-high-level-description: done  # README.md
+  docs-installation-instructions: done  # README.md
+  docs-removal-instructions: done  # README.md
+  entity-event-setup: done  # no event subscriptions; CoordinatorEntity only
+  entity-unique-id: done
+  # ^ f"{entry_id}_{stream}_{key}" and f"{entry_id}_{subentry_id}_{key}".
+  #   Keyed on the SUBENTRY id, never the receptacle's name, so renaming a bin
+  #   cannot orphan its entities (entity.py).
+  has-entity-name: done  # _attr_has_entity_name = True on WasteEntity
+  runtime-data: todo
+  # ^ The coordinator is stashed in hass.data[DOMAIN][entry_id] rather than
+  #   entry.runtime_data. Straight port from the repo this came from; nothing
+  #   depends on the old shape and it should move.
+  test-before-configure: todo
+  # ^ DELIBERATE, AND RECORDED AS A DEVIATION RATHER THAN SKIPPED (LAW §15),
+  #   on the same reasoning as yard_maintenance. There is nothing to test a
+  #   connection to: this integration reads no service, no device and no other
+  #   integration's entities. A flow that "verified" something here would be
+  #   the check LAW §9 warns about -- one that certifies green on a channel the
+  #   integration does not use.
+  test-before-setup: done  # async_config_entry_first_refresh
+  unique-config-entry: done  # single_config_entry in manifest.json
+
+  # --- Silver ---
+  action-exceptions: done
+  # ^ NO LONGER VACUOUS. Every refusal `set_schedule` makes is raised as
+  #   ServiceValidationError with a translation key, never a bare ValueError
+  #   and never a swallowed no-op: TOOLS.md records that a service call answers
+  #   200 on a silent no-op, so a wall panel cannot tell a stored schedule from
+  #   an ignored one. The values are validated in schedule_options.py, which
+  #   imports no Home Assistant and is therefore the half the suite can
+  #   actually exercise (tests/test_schedule_options.py).
+  config-entry-unloading: done  # unloads exactly the platforms forwarded
+  docs-configuration-parameters: done  # README.md
+  docs-installation-parameters: done  # README.md
+  entity-unavailable: done
+  # ^ Applied where it GOVERNS, not where it sounds relevant (LAW §15). The
+  #   coordinator never raises UpdateFailed and its docstring says why: the
+  #   inputs are this entry's own options and the clock, so an exception could
+  #   only ever be an arithmetic bug, and taking every entity unavailable is
+  #   the worst way to report one (LAW §11). The rule's other half is adopted
+  #   where it does govern: an unset schedule is a NAMED gap on the sensor
+  #   ("day"/"cadence"/"anchor"), never a silent absent date.
+  integration-owner: done  # @jrackerby
+  log-when-unavailable: done  # vacuously: no source can be unavailable
+  parallel-updates: todo  # PARALLEL_UPDATES not declared on any platform
+  reauthentication-flow: done  # no credentials exist to expire
+  test-coverage: todo
+  # ^ tests/ covers the resolver -- the whole date/cadence layer -- with Home
+  #   Assistant absent, and the conftest enforces that purity rather than
+  #   asserting it. The HA-facing half (coordinator reduction, the four
+  #   platforms, the subentry flow) is NOT covered here; validate.yml's
+  #   `imports` job loads the real layout against real core, nothing more.
+
+  # --- Gold / Platinum: not targeted. LAW §15 sets Silver as the target for
+  #     anything reading a device, a service, or another integration's
+  #     entities. This reads NONE of those -- it is a pure bookkeeping
+  #     integration over its own stored state -- so Bronze is the governing
+  #     floor and Silver is met where it applies. Listed anyway so the gaps
+  #     stay visible rather than being exempted out of sight.
+  devices: done  # a device per stream, and a device per receptacle
+  diagnostics: todo
+  discovery: todo  # nothing to discover
+  discovery-update-info: todo
+  docs-data-update: done  # README.md explains the five-minute recompute
+  docs-examples: todo
+  docs-known-limitations: done
+  # ^ README.md records that a receptacle carries no capacity or fill level and
+  #   that "has waste" is an assertion by a person, not a measurement.
+  docs-supported-devices: done  # README.md: there are none, deliberately
+  docs-supported-functions: done  # README.md
+  docs-troubleshooting: todo
+  docs-use-cases: done  # README.md opens with what it is for
+  dynamic-devices: done
+  # ^ A receptacle is a config subentry, so adding one in the UI mints its
+  #   device and entities without a restart -- the entry reloads on the
+  #   subentry change (__init__.py's update listener), and each platform adds
+  #   its entities with config_subentry_id set.
+  entity-category: todo
+  # ^ Nothing is declared CONFIG or DIAGNOSTIC. Arguably last_collected and
+  #   last_emptied are diagnostic; left undeclared because the board reads them
+  #   and a category change moves an entity out of the default dashboard.
+  entity-device-class: done  # SensorDeviceClass.TIMESTAMP on all three dates
+  entity-disabled-by-default: todo  # nothing is; the entity count is small
+  entity-translations: done
+  # ^ _attr_translation_key on every entity, resolved from translations/en.json.
+  #   No strings.json: this integration ships the translations file directly,
+  #   which is what a custom component loads.
+  exception-translations: todo  # no exceptions are raised to a user
+  icon-translations: todo  # icons.json not provided
+  inject-websession: todo  # no HTTP session is used at all
+  reconfiguration-flow: done
+  # ^ The options flow edits both stream schedules; the receptacle subentry
+  #   flow adds and reconfigures bins.
+  repair-issues: todo
+  # ^ An unset pickup day is the obvious candidate and is deliberately NOT one:
+  #   it is the empty-seed starting state Joel asked for, not a fault.
+  stale-devices: done
+  # ^ async_remove_config_entry_device allows a device whose subentry is gone
+  #   to be deleted, and refuses one the entry still owns (__init__.py).
+  strict-typing: todo  # annotated throughout, but not py.typed and not mypy-clean
+  async-dependency: done  # no third-party dependency; no blocking I/O

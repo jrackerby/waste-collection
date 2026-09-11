@@ -82,7 +82,16 @@ class WasteCoordinator(DataUpdateCoordinator):
 
     async def _async_persist(self) -> None:
         await self._store.async_save(self._state)
-        await self.async_request_refresh()
+        # Immediate, not debounced. The coordinator debouncer's cooldown is
+        # 10s, so a SECOND assertion inside it waits out the remainder --
+        # measured against live core at 0.02s for an isolated tap and 10.18s
+        # for a back-to-back one. The surface these entities feed is a wall
+        # panel where somebody walks the house tapping bins in a row, so
+        # every tap after the first read as ignored and invited a second
+        # press on a control that had already fired. A debouncer coalesces
+        # polls of a remote device; there is no device here, and the update
+        # is pure arithmetic over a handful of dates.
+        await self.async_refresh()
 
     def _get(self, scope: str, key: str, default=None):
         return self._state.get(scope, {}).get(key, default)

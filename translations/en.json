@@ -91,21 +91,71 @@
   },
   "entity": {
     "sensor": {
-      "next_pickup": { "name": "Next pickup" },
-      "last_collected": { "name": "Last collected" },
-      "last_emptied": { "name": "Last emptied" },
-      "active_receptacles": { "name": "Active receptacles" }
+      "next_pickup": {
+        "name": "Next pickup"
+      },
+      "last_collected": {
+        "name": "Last collected"
+      },
+      "last_emptied": {
+        "name": "Last emptied"
+      },
+      "active_receptacles": {
+        "name": "Active receptacles"
+      }
     },
     "binary_sensor": {
-      "setout_due": { "name": "Set out due" }
+      "setout_due": {
+        "name": "Set out due"
+      }
     },
     "switch": {
-      "cart_out": { "name": "Cart at curb" },
-      "has_waste": { "name": "Has waste" }
+      "cart_out": {
+        "name": "Cart at curb"
+      },
+      "has_waste": {
+        "name": "Has waste"
+      }
     },
     "button": {
-      "collected": { "name": "Collected" },
-      "emptied": { "name": "Emptied" }
+      "collected": {
+        "name": "Collected"
+      },
+      "emptied": {
+        "name": "Emptied"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Set schedule",
+      "description": "Sets one stream's pickup day, cadence or every-other-week anchor. Fields left out are not changed; send an empty value to clear one. An unrecognised day or cadence is refused rather than ignored, so a wall panel is told when a schedule did not save.",
+      "fields": {
+        "stream": {
+          "name": "Stream",
+          "description": "Which collection to change."
+        },
+        "weekday": {
+          "name": "Pickup day",
+          "description": "The day the truck comes. Leave empty to clear it."
+        },
+        "cadence": {
+          "name": "How often",
+          "description": "Every week, or every other week."
+        },
+        "anchor": {
+          "name": "A date it was collected",
+          "description": "Only used for every-other-week, to fix which week is the on week. Any date the truck actually came will do."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "no_entry": {
+      "message": "Waste Collection is not set up, so there is no schedule to change."
+    },
+    "unknown_value": {
+      "message": "{field} is not a value Waste Collection recognises: {value}. Nothing was changed."
     }
   }
 }

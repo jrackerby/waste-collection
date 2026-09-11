@@ -3,4 +3,4 @@
 # repo root cannot be in pytest's collection tree.
 set -euo pipefail
 cd "$(dirname "$0")/../tests"
-exec python -m pytest "$@"
+exec "${PYTHON:-python3}" -m pytest "$@"

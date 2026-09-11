@@ -1,7 +1,7 @@
 """Stage the PURE modules as an importable package -- and nothing else.
 
-The repo root is the integration (hacs.json content_in_root, because
-jrackerby/HA submodules it AS custom_components/waste_collection), and the
+The repo root is the integration (hacs.json content_in_root, so HACS lands
+it AS custom_components/waste_collection), and the
 directory on disk is `waste-collection`, which is not an importable module
 name. So the suite has to stage a package either way.
 
@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # Every module that must stay importable without Home Assistant. Adding one
 # here is a claim that it is pure, and the suite is what tests the claim.
-PURE_MODULES = ("const.py", "resolver.py")
+PURE_MODULES = ("const.py", "resolver.py", "schedule_options.py")
 
 _stage = Path(tempfile.mkdtemp(prefix="waste_collection_test_"))
 atexit.register(shutil.rmtree, _stage, True)

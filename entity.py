@@ -44,6 +44,19 @@ class StreamEntity(WasteEntity):
         self._stream = stream
 
     @property
+    def extra_state_attributes(self) -> dict:
+        """Which stream this entity belongs to, on EVERY stream entity.
+
+        A consumer must never have to work this out for itself. The two
+        things it could otherwise read are both wrong: a device name is
+        renameable, and an entity id is frozen at creation and is exactly
+        what TOOLS.md says not to parse. The receptacle switch has always
+        carried `stream`; this is the same contract on the other side of the
+        integration. Subclasses with attributes of their own merge over it.
+        """
+        return {"stream": self._stream}
+
+    @property
     def device_info(self) -> DeviceInfo:
         label = self._stream.replace("_", " ").title()
         return DeviceInfo(
