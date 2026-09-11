@@ -90,9 +90,8 @@ class WasteCollectionConfigFlow(ConfigFlow, domain=DOMAIN):
 class WasteCollectionOptionsFlow(OptionsFlow):
     """One step per stream, each writing only its own key.
 
-    MERGING OVER THE EXISTING OPTIONS, NOT REPLACING THEM, is the trap
-    TOOLS.md records: `async_create_entry(data=...)` replaces `entry.options`
-    wholesale, so a step returning only its own keys deletes every other
+    MERGING OVER THE EXISTING OPTIONS, NOT REPLACING THEM, is the trap here:
+    `async_create_entry(data=...)` replaces `entry.options` wholesale, so a step returning only its own keys deletes every other
     step's, silently. Harmless while a flow has one step -- which is how it
     survives to the commit that adds the second.
     """

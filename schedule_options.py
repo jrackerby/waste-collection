@@ -10,11 +10,12 @@ otherwise own it.
 
 WHY THE SERVICE VALIDATES AT ALL when the options flow's selectors already
 constrain the same three fields to the same values. A dropdown cannot emit a
-value that is not in it; `callService` can send anything. GH-618 added this
-service precisely so a wall panel could set the schedule without opening
-Settings, and TOOLS.md records that a service call answers 200 on a no-op --
-so an unrecognised weekday that was quietly dropped, or quietly defaulted to
-Monday, would read as success from the one surface that cannot check.
+value that is not in it; `callService` can send anything. This service exists
+precisely so a dashboard or a script can set the schedule without opening
+Settings, and Home Assistant answers a service call 200 even when the call did
+nothing -- so an unrecognised weekday that was quietly dropped, or quietly
+defaulted to Monday, would read as success from the one surface that cannot
+check.
 
 `weekday_index()` in resolver.py is the model: unknown is None, never Monday.
 The difference is only in who is told. The resolver is reducing options that
@@ -123,12 +124,12 @@ def validate_changes(raw):
 def merge_stream_options(options, stream, changes):
     """Return a NEW options mapping with `changes` applied to one stream.
 
-    MERGING AT BOTH LEVELS, and both matter. The outer merge is the trap
-    TOOLS.md records for options flows -- replacing `entry.options` wholesale
-    drops the other stream's schedule silently. The inner merge is the same
-    hazard one level down: a call that sets only the cadence must leave the
-    pickup day and the anchor where they were, or setting one field from the
-    wall quietly unsets the two beside it.
+    MERGING AT BOTH LEVELS, and both matter. The outer merge is the options-flow
+    trap: `async_create_entry(data=...)` replaces `entry.options` wholesale, so
+    returning one stream's keys drops the other stream's schedule silently. The
+    inner merge is the same hazard one level down: a call that sets only the
+    cadence must leave the pickup day and the anchor where they were, or setting
+    one field from a dashboard quietly unsets the two beside it.
 
     Nothing is mutated in place. `async_update_entry` compares the mapping it
     is handed against the stored one to decide whether anything changed, so

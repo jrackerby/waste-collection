@@ -1,13 +1,12 @@
 """The refusal, and the two-level merge, exercised with Home Assistant absent.
 
-The guarantee under test is GH-618's condition on the action existing at all:
-it must reject a weekday or cadence it does not recognise rather than silently
-defaulting, because TOOLS.md records that a service call answers 200 on a
-no-op and a wall panel therefore cannot tell a stored schedule from an ignored
-one.
+The guarantee under test is the condition on the action existing at all: it
+must reject a weekday or cadence it does not recognise rather than silently
+defaulting, because Home Assistant answers a service call 200 on a no-op and a
+dashboard button therefore cannot tell a stored schedule from an ignored one.
 
-Every test below states what a FAILURE would look like on the wall, not just
-what the function returns, because that is the thing worth protecting.
+Every test below states what a FAILURE would look like on the dashboard, not
+just what the function returns, because that is the thing worth protecting.
 """
 
 from datetime import date
@@ -70,7 +69,7 @@ def test_unparseable_anchor_raises(bad):
 
 
 def test_self_test_the_refusal_can_fail():
-    """Proof the assertions above CAN fail -- LAW §4.
+    """Proof the assertions above CAN fail.
 
     A validator that accepted everything would pass every `raises` test above
     only if those tests were wrong about the input. This asserts the opposite
@@ -125,7 +124,7 @@ def test_explicit_clear_is_distinct_from_omission(clearer):
 
 
 def test_setting_one_stream_leaves_the_other_intact():
-    """The outer merge. TOOLS.md's options-flow trap, one level up."""
+    """The outer merge -- the options-flow trap, one level up."""
     options = {
         STREAM_TRASH: {CONF_WEEKDAY: "wednesday", CONF_CADENCE: CADENCE_WEEKLY},
         STREAM_RECYCLING: {CONF_WEEKDAY: "friday", CONF_CADENCE: CADENCE_BIWEEKLY},
