@@ -1,7 +1,7 @@
 # Waste Collection
 
-A Home Assistant integration for the household's waste: where the bins are,
-which ones are holding waste, and when each stream is collected.
+A Home Assistant integration for household waste: where the bins are, which
+ones are holding waste, and when each stream is collected.
 
 **Devices supported: none.** It reads no hardware, no service and no other
 integration's entities. Every input is either a schedule you set or an
@@ -53,11 +53,14 @@ for a Wednesday route.
 ### `waste_collection.set_schedule`
 
 Sets one stream's pickup day, cadence or every-other-week anchor without
-opening Settings. It exists because the schedule lives in the config entry's
-**options**, and options are reachable only through an options flow — a form.
-A dashboard has `callService` and nothing else, so when the schedule moved out
-of YAML helpers and into this integration (GH-610) the wall lost the one
-control it had. Ruled by Joel on GH-618: add the action so the wall keeps it.
+opening Settings.
+
+It exists because the schedule lives in the config entry's **options**, and
+options are reachable only through an options flow — a form somebody has to
+open in the Settings UI. A dashboard, a wall panel or an automation has
+`callService` and nothing else, so without an action the schedule is
+unreachable from every surface except Settings. This is the same setting,
+reachable from a script.
 
 | Field | Required | Value |
 |---|---|---|
@@ -82,11 +85,11 @@ was, and setting one stream must leave the other alone.
 
 **What it refuses, and why that is the point.** A weekday or cadence it does
 not recognise is rejected, not dropped and not defaulted; so is a call naming
-`stream` and no field at all. A service call answers `200` even on a silent
-no-op (TOOLS.md), so a wall panel is the one surface that cannot tell a stored
-schedule from an ignored one — every refusal comes back as a real error naming
-the field and the value. `weekday_index()` in `resolver.py` is the same rule
-one layer down: unknown is `None`, never Monday.
+`stream` and no field at all. Home Assistant answers a service call `200` even
+when the call did nothing, so a dashboard button is the one surface that cannot
+tell a stored schedule from an ignored one — every refusal here comes back as a
+real error naming the field and the value. `weekday_index()` in `resolver.py`
+is the same rule one layer down: unknown is `None`, never Monday.
 
 Setting a cadence of `biweekly` with no anchor is allowed and is not an error.
 It leaves a named gap (`anchor`) that the next-pickup sensor reports, which is
@@ -96,7 +99,7 @@ nobody chose.
 ## Design
 
 `resolver.py` holds every date answer and **imports nothing from
-`homeassistant`** (LAW §11). It also takes no clock — `today` is always passed
+`homeassistant`**. It also takes no clock — `today` is always passed
 in, because a function that reads the clock cannot be tested by inspection, and
 "is the truck coming tomorrow" is exactly the question nobody can wait around
 to observe.
