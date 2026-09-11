@@ -1,7 +1,7 @@
 # Self-assessment against the Home Assistant integration quality scale.
 #
-# LAW.md §15 makes the scale this estate's build standard, and TOOLS.md records
-# why this file is the only gate there is: hassfest's `validate_iqs_file` opens
+# The scale is this component's build standard. This file is the only gate
+# there is, because hassfest's `validate_iqs_file` opens
 # with `if not integration.core: return`, so a custom component is never checked
 # against the scale, and a `quality_scale` key in the manifest is a self-claim
 # with nothing behind it. No such key is declared in manifest.json.
@@ -18,10 +18,10 @@
 rules:
   # --- Bronze ---
   action-setup: done
-  # ^ NO LONGER VACUOUS. GH-618 added `set_schedule`, and it is registered in
-  #   `async_setup` rather than `async_setup_entry` exactly as this rule asks:
-  #   an action registered per-entry vanishes while the entry reloads, so the
-  #   wall panel that calls it would get "service not found" instead of an
+  # ^ NO LONGER VACUOUS. `set_schedule` is registered in `async_setup` rather
+  #   than `async_setup_entry`, exactly as this rule asks: an action registered
+  #   per-entry vanishes while the entry reloads, so a dashboard button calling
+  #   it would get "service not found" instead of an
   #   answer. `services._entry()` resolves the entry at CALL time and raises a
   #   translated ServiceValidationError when there is none.
   appropriate-polling: done
@@ -52,12 +52,12 @@ rules:
   #   entry.runtime_data. Straight port from the repo this came from; nothing
   #   depends on the old shape and it should move.
   test-before-configure: todo
-  # ^ DELIBERATE, AND RECORDED AS A DEVIATION RATHER THAN SKIPPED (LAW §15),
-  #   on the same reasoning as yard_maintenance. There is nothing to test a
-  #   connection to: this integration reads no service, no device and no other
-  #   integration's entities. A flow that "verified" something here would be
-  #   the check LAW §9 warns about -- one that certifies green on a channel the
-  #   integration does not use.
+  # ^ DELIBERATE, AND RECORDED AS A DEVIATION RATHER THAN SKIPPED. There is
+  #   nothing to test a connection to: this integration reads no service, no
+  #   device and no other integration's entities. A flow that "verified"
+  #   something here would be a setup check that exercises a different channel
+  #   than the one that will be used, which certifies nothing, and certifies it
+  #   green.
   test-before-setup: done  # async_config_entry_first_refresh
   unique-config-entry: done  # single_config_entry in manifest.json
 
@@ -65,20 +65,20 @@ rules:
   action-exceptions: done
   # ^ NO LONGER VACUOUS. Every refusal `set_schedule` makes is raised as
   #   ServiceValidationError with a translation key, never a bare ValueError
-  #   and never a swallowed no-op: TOOLS.md records that a service call answers
-  #   200 on a silent no-op, so a wall panel cannot tell a stored schedule from
-  #   an ignored one. The values are validated in schedule_options.py, which
+  #   and never a swallowed no-op: Home Assistant answers a service call 200
+  #   even on a silent no-op, so a dashboard button cannot tell a stored
+  #   schedule from an ignored one. The values are validated in schedule_options.py, which
   #   imports no Home Assistant and is therefore the half the suite can
   #   actually exercise (tests/test_schedule_options.py).
   config-entry-unloading: done  # unloads exactly the platforms forwarded
   docs-configuration-parameters: done  # README.md
   docs-installation-parameters: done  # README.md
   entity-unavailable: done
-  # ^ Applied where it GOVERNS, not where it sounds relevant (LAW §15). The
+  # ^ Applied where it GOVERNS, not where it sounds relevant. The
   #   coordinator never raises UpdateFailed and its docstring says why: the
   #   inputs are this entry's own options and the clock, so an exception could
   #   only ever be an arithmetic bug, and taking every entity unavailable is
-  #   the worst way to report one (LAW §11). The rule's other half is adopted
+  #   the worst way to report one. The rule's other half is adopted
   #   where it does govern: an unset schedule is a NAMED gap on the sensor
   #   ("day"/"cadence"/"anchor"), never a silent absent date.
   integration-owner: done  # @jrackerby
@@ -92,9 +92,8 @@ rules:
   #   platforms, the subentry flow) is NOT covered here; validate.yml's
   #   `imports` job loads the real layout against real core, nothing more.
 
-  # --- Gold / Platinum: not targeted. LAW §15 sets Silver as the target for
-  #     anything reading a device, a service, or another integration's
-  #     entities. This reads NONE of those -- it is a pure bookkeeping
+  # --- Gold / Platinum: not targeted. Silver is the target for anything
+  #     reading a device, a service, or another integration's entities. This reads NONE of those -- it is a pure bookkeeping
   #     integration over its own stored state -- so Bronze is the governing
   #     floor and Silver is met where it applies. Listed anyway so the gaps
   #     stay visible rather than being exempted out of sight.
@@ -134,7 +133,7 @@ rules:
   #   flow adds and reconfigures bins.
   repair-issues: todo
   # ^ An unset pickup day is the obvious candidate and is deliberately NOT one:
-  #   it is the empty-seed starting state Joel asked for, not a fault.
+  #   it is the deliberate empty-seed starting state, not a fault.
   stale-devices: done
   # ^ async_remove_config_entry_device allows a device whose subentry is gone
   #   to be deleted, and refuses one the entry still owns (__init__.py).

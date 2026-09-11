@@ -3,16 +3,15 @@
 WHY A SERVICE EXISTS FOR THIS AT ALL. The pickup day, the cadence and the
 every-other-week anchor are config-entry OPTIONS, and options are reachable
 only through an options flow -- a form, in Settings. A dashboard has
-`callService` and nothing else, so when GH-610 moved the schedule out of YAML
-helpers and into this integration, the wall lost the one control it used to
-have. RULED (Joel, GH-618): add the action so the wall keeps it. The fleet's
-boards exist so nobody has to open Home Assistant, and this was the only
-control that had ever moved the other way.
+`callService` and nothing else, so without this action the schedule is
+reachable from Settings and from nowhere else -- not from a dashboard button,
+not from a script, not from an automation. A display exists so nobody has to
+open Home Assistant; a setting only Settings can reach moves the wrong way.
 
 WHAT IT REFUSES, AND WHY THAT IS THE FEATURE. `validate_changes()` raises on a
 weekday or cadence it does not recognise instead of dropping or defaulting it.
-TOOLS.md: a service call answers 200 even on a silent no-op, so a wall panel
-cannot tell a stored schedule from an ignored one. Every refusal here is
+Home Assistant answers a service call 200 even on a silent no-op, so a
+dashboard button cannot tell a stored schedule from an ignored one. Every refusal here is
 raised as `ServiceValidationError`, which is the one class HA reports back to
 the caller as a real error rather than logging a traceback and answering
 success.

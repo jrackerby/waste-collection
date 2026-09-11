@@ -5,11 +5,11 @@ is polling a device:
 
   1. Every derived answer depends on TODAY. `next_pickup` and `setout_due`
      change at midnight with no state change to trigger them, so something has
-     to re-evaluate on a timer or the wall spends collection morning saying the
-     truck comes in seven days.
-  2. One reduction, read by four platforms. The board this replaces learned
-     that lesson as LAW §1: when the cart card and the schedule card each read
-     the helpers themselves, a stream could be "unscheduled" on one and show
+     to re-evaluate on a timer or a display spends collection morning saying
+     the truck comes in seven days.
+  2. One reduction, read by four platforms. A value read by two code paths goes
+     through one accessor: when a cart card and a schedule card each read the
+     stored values themselves, a stream could be "unscheduled" on one and show
      four upcoming dates on the other.
 
 STORED STATE IS SEPARATE FROM DERIVED STATE. Cart-out, has-waste and the two

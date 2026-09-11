@@ -165,7 +165,7 @@ class TestReadingStoredValues:
 
 
 class TestPurity:
-    """LAW §11: the resolver imports nothing from `homeassistant`.
+    """The resolver imports nothing from `homeassistant`.
 
     Asserted here rather than left to a docstring, because the whole reason
     the calendar arithmetic lives in its own module is that it can be
@@ -185,8 +185,8 @@ class TestPurity:
         )
 
     def test_neither_pure_module_IMPORTS_home_assistant(self):
-        # ON THE IMPORT NODES, NOT ON THE TEXT (LAW §4: assert on code forms,
-        # strip comments first). The first version of this grepped the source
+        # ON THE IMPORT NODES, NOT ON THE TEXT: assert on code forms, and
+        # strip comments first. The first version of this grepped the source
         # and failed on resolver.py's own docstring, which says in prose that
         # it must never import core -- a file documenting the rule matching
         # the check for the rule's violation.
