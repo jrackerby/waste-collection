@@ -1,0 +1,42 @@
+# Selectors here mirror const.py's WEEKDAYS, CADENCES and STREAMS. They are
+# the UI's constraint only -- the enforced one is schedule_options.py, because
+# a board calling this action never renders these fields at all.
+set_schedule:
+  fields:
+    stream:
+      required: true
+      example: trash
+      selector:
+        select:
+          translation_key: stream
+          options:
+            - trash
+            - recycling
+    weekday:
+      required: false
+      example: wednesday
+      selector:
+        select:
+          translation_key: weekday
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+    cadence:
+      required: false
+      example: biweekly
+      selector:
+        select:
+          translation_key: cadence
+          options:
+            - weekly
+            - biweekly
+    anchor:
+      required: false
+      example: "2026-09-04"
+      selector:
+        date:

@@ -68,6 +68,7 @@ class NextPickupSensor(StreamEntity, SensorEntity):
     def extra_state_attributes(self) -> dict:
         row = self.coordinator.data["streams"][self._stream]
         return {
+            **super().extra_state_attributes,
             "gap": row["gap"],
             "weekday": row["weekday"],
             "cadence": row["cadence"],

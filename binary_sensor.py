@@ -33,4 +33,8 @@ class SetoutDueBinarySensor(StreamEntity, BinarySensorEntity):
         row = self.coordinator.data["streams"][self._stream]
         # `status` carries the case is_on cannot: a cart still at the curb the
         # day after its pickup needs bringing IN, which is neither due nor idle.
-        return {"status": row["status"], "days_until": row["days_until"]}
+        return {
+            **super().extra_state_attributes,
+            "status": row["status"],
+            "days_until": row["days_until"],
+        }

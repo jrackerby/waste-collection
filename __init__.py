@@ -5,9 +5,12 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
 from .coordinator import WasteCoordinator
+from .services import async_setup_services
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -15,6 +18,22 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.SWITCH,
 ]
+
+# Nothing here is configurable from YAML; the entry is the only way in.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the domain's actions, once, whether or not an entry exists.
+
+    IN `async_setup` RATHER THAN `async_setup_entry` deliberately: an action
+    registered per-entry disappears when the entry is unloaded, so a board
+    calling it during a reload gets "service not found" instead of an answer,
+    and the action is missing from the UI's picker until setup completes.
+    `_entry()` resolves the entry at CALL time and says so when there is none.
+    """
+    async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
