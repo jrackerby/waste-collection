@@ -35,7 +35,22 @@
         "data_description": {
           "anchor": "Only used for every-other-week, to fix which week is the on week. Any date the truck actually came will do."
         }
+      },
+      "holidays": {
+        "title": "Holidays",
+        "description": "Dates the trucks do not run. A pickup in the same Monday-to-Sunday week as a holiday, on or after it, moves later by the shift -- once per holiday ahead of it that week. Enter each as YYYY-MM-DD; a Sunday holiday goes in as the Monday it is observed on.",
+        "data": {
+          "holidays": "Holiday dates",
+          "holiday_shift_days": "Days a pickup moves per holiday"
+        },
+        "data_description": {
+          "holidays": "The observed dates, one per line. Leave empty for none.",
+          "holiday_shift_days": "One day is the usual municipal rule. Zero turns the rule off without losing the list."
+        }
       }
+    },
+    "error": {
+      "unknown_value": "Not a date this integration can read. Use YYYY-MM-DD."
     }
   },
   "config_subentries": {
@@ -102,6 +117,9 @@
       },
       "active_receptacles": {
         "name": "Active receptacles"
+      },
+      "household_next_pickup": {
+        "name": "Next pickup"
       }
     },
     "binary_sensor": {
@@ -146,6 +164,46 @@
         "anchor": {
           "name": "A date it was collected",
           "description": "Only used for every-other-week, to fix which week is the on week. Any date the truck actually came will do."
+        }
+      }
+    },
+    "set_holidays": {
+      "name": "Set holidays",
+      "description": "Replaces the list of dates the trucks do not run, and/or how many days a pickup moves for each holiday ahead of it in its week. The list is sent whole; an empty list clears it.",
+      "fields": {
+        "holidays": {
+          "name": "Holiday dates",
+          "description": "Every observed holiday date, as YYYY-MM-DD. Replaces the stored list."
+        },
+        "holiday_shift_days": {
+          "name": "Shift per holiday",
+          "description": "Days a pickup moves later for each holiday on or before it in the same week. Zero turns the rule off."
+        }
+      }
+    },
+    "set_override": {
+      "name": "Set pickup override",
+      "description": "Moves or skips one stream's pickup on one scheduled date, or clears an earlier override. Keyed on the date the schedule put it on, before any holiday shift.",
+      "fields": {
+        "stream": {
+          "name": "Stream",
+          "description": "Which collection."
+        },
+        "date": {
+          "name": "Scheduled date",
+          "description": "The date the schedule alone would give for this pickup."
+        },
+        "replacement": {
+          "name": "Happens on",
+          "description": "The date the truck will actually come instead."
+        },
+        "skip": {
+          "name": "Skip",
+          "description": "The pickup does not happen at all. Cannot be combined with a replacement."
+        },
+        "clear": {
+          "name": "Clear",
+          "description": "Forget any override on this date and go back to the schedule."
         }
       }
     }

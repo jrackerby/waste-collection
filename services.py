@@ -36,15 +36,34 @@ from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from .const import CONF_ANCHOR, CONF_CADENCE, CONF_STREAM, CONF_WEEKDAY, DOMAIN
+from .const import (
+    CONF_ANCHOR,
+    CONF_CADENCE,
+    CONF_CLEAR,
+    CONF_DATE,
+    CONF_HOLIDAY_SHIFT_DAYS,
+    CONF_HOLIDAYS,
+    CONF_REPLACEMENT,
+    CONF_SKIP,
+    CONF_STREAM,
+    CONF_WEEKDAY,
+    DOMAIN,
+)
 from .schedule_options import (
     ScheduleValueError,
+    merge_holiday_options,
+    merge_override,
     merge_stream_options,
     validate_changes,
+    validate_holidays,
+    validate_override,
+    validate_shift_days,
     validate_stream,
 )
 
 SERVICE_SET_SCHEDULE = "set_schedule"
+SERVICE_SET_HOLIDAYS = "set_holidays"
+SERVICE_SET_OVERRIDE = "set_override"
 
 # Shape only -- see the module docstring. `has_at_least_one_key` is what stops
 # the well-formed no-op; selectors are declared in services.yaml, so the UI
@@ -59,6 +78,33 @@ SET_SCHEDULE_SCHEMA = vol.All(
         }
     ),
     cv.has_at_least_one_key(CONF_WEEKDAY, CONF_CADENCE, CONF_ANCHOR),
+)
+
+# `holidays` is the whole list, replaced on every call -- there is no
+# add-one, because the list a person holds is the calendar for the year and
+# sending it whole is how it stays equal to that calendar. An empty list is
+# a real value (no holidays) and clears it.
+SET_HOLIDAYS_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            # RAW types, on purpose: `cv.string` would stringify an integer
+            # 20261225 into a string that `date.fromisoformat` accepts. The
+            # pure module refuses anything that is not a string or a date.
+            vol.Optional(CONF_HOLIDAYS): vol.Any(None, list, str),
+            vol.Optional(CONF_HOLIDAY_SHIFT_DAYS): vol.Any(None, int, float, str),
+        }
+    ),
+    cv.has_at_least_one_key(CONF_HOLIDAYS, CONF_HOLIDAY_SHIFT_DAYS),
+)
+
+SET_OVERRIDE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_STREAM): cv.string,
+        vol.Required(CONF_DATE): cv.string,
+        vol.Optional(CONF_REPLACEMENT): vol.Any(None, cv.string),
+        vol.Optional(CONF_SKIP): cv.boolean,
+        vol.Optional(CONF_CLEAR): cv.boolean,
+    }
 )
 
 
@@ -107,6 +153,43 @@ async def _async_set_schedule(call: ServiceCall) -> None:
     hass.config_entries.async_update_entry(entry, options=options)
 
 
+async def _async_set_holidays(call: ServiceCall) -> None:
+    """Replace the holiday list and/or the shift, validated in the pure module."""
+    hass = call.hass
+    entry = _entry(hass)
+
+    holidays = shift_days = None
+    try:
+        if CONF_HOLIDAYS in call.data:
+            holidays = validate_holidays(call.data[CONF_HOLIDAYS])
+        if CONF_HOLIDAY_SHIFT_DAYS in call.data and call.data[CONF_HOLIDAY_SHIFT_DAYS] is not None:
+            shift_days = validate_shift_days(call.data[CONF_HOLIDAY_SHIFT_DAYS])
+    except ScheduleValueError as err:
+        raise _refuse(err) from err
+
+    options = merge_holiday_options(entry.options, holidays, shift_days)
+    if options == dict(entry.options):
+        return
+    hass.config_entries.async_update_entry(entry, options=options)
+
+
+async def _async_set_override(call: ServiceCall) -> None:
+    """Set, skip or clear one stream's pickup on one scheduled date."""
+    hass = call.hass
+    entry = _entry(hass)
+
+    try:
+        stream = validate_stream(call.data[CONF_STREAM])
+        day, replacement, clear = validate_override(call.data)
+    except ScheduleValueError as err:
+        raise _refuse(err) from err
+
+    options = merge_override(entry.options, stream, day, replacement, clear)
+    if options == dict(entry.options):
+        return
+    hass.config_entries.async_update_entry(entry, options=options)
+
+
 @callback
 def async_setup_services(hass: HomeAssistant) -> None:
     """Register the domain's actions. Called once, from `async_setup`."""
@@ -115,4 +198,16 @@ def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_SET_SCHEDULE,
         _async_set_schedule,
         schema=SET_SCHEDULE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_HOLIDAYS,
+        _async_set_holidays,
+        schema=SET_HOLIDAYS_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_OVERRIDE,
+        _async_set_override,
+        schema=SET_OVERRIDE_SCHEMA,
     )

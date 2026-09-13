@@ -27,17 +27,21 @@ assertion a person makes by pressing something.
 
 | entity | notes |
 |---|---|
-| `sensor.*_next_pickup` | `device_class: timestamp`. Attributes carry the exact date, the next four, and `gap` — which field is missing when there is no date |
+| `sensor.*_next_pickup` | `device_class: timestamp`. Attributes carry the exact date, `days_until_pickup`, `next_pickup_type` (`regular`, `holiday`, `override`), `shifted_from` when the date moved, `is_bin_out`, the next four dates (`upcoming`, and `upcoming_detail` with each one's reason), and `gap` — which field is missing when there is no date |
 | `sensor.*_last_collected` | stamped by the button |
-| `binary_sensor.*_setout_due` | on the day before and the day of. `status` in its attributes carries the case a boolean cannot: a cart still out the day *after* pickup needs bringing in |
+| `binary_sensor.*_setout_due` | on the day before and the day of. `status` in its attributes carries the case a boolean cannot: a cart still out the day *after* pickup needs bringing in. Also carries `days_until_pickup`, `next_pickup_type` and `is_bin_out` |
 | `switch.*_cart_out` | where the cart physically is — not an instruction |
 | `button.*_collected` | the truck came: stamps the time and brings the cart in, because that is one event |
 
 **Per receptacle** — a config subentry, so each is its own device you assign to
 an area: `switch.*_has_waste`, `sensor.*_last_emptied`, `button.*_emptied`.
 
-Plus `sensor.waste_collection_active_receptacles`, counting the bins holding
-waste with the longest-waiting named first.
+Plus two household-level sensors: `sensor.waste_collection_active_receptacles`,
+counting the bins holding waste with the longest-waiting named first, and
+`sensor.waste_collection_next_pickup` — the soonest pickup of any stream, with
+`streams` (which ones come that day), `days_until_pickup`, `next_pickup_type`
+and `is_bin_out` (any of those streams' carts at the curb). One tile reads it
+instead of comparing two stream sensors.
 
 ## Setup
 
@@ -61,6 +65,33 @@ Set the cadence to every-other-week and give **any date the truck actually
 came**. It fixes which week is the on week and nothing else; the resolver snaps
 it back to the pickup weekday itself, so "the Friday I noticed them" works fine
 for a Wednesday route.
+
+### Holidays
+
+Under **Configure**, the third step takes the dates the trucks do not run and
+how far a pickup moves for each. The rule is the one nearly every municipal
+calendar publishes: **a pickup in the same Monday-to-Sunday week as a holiday,
+on or after it, moves later by one day per such holiday.** A Monday holiday
+delays every route that week; a Thursday holiday delays Friday's route and
+leaves Wednesday's alone; a holiday on the pickup day itself moves it. Enter a
+Sunday holiday as the Monday it is observed on — nothing here guesses at
+observance.
+
+A moved pickup stays *upcoming* on its scheduled day and on the day it moved
+to, so Wednesday night still says "tomorrow" rather than "next Wednesday".
+`next_pickup_type` reads `holiday` and `shifted_from` names the scheduled
+date.
+
+The shift is a setting (0–6 days). Zero turns the rule off and keeps the list.
+
+### Overrides
+
+`waste_collection.set_override` moves or skips **one stream's pickup on one
+scheduled date** — a route the town rescheduled, or a week recycling did not
+run. Overrides are keyed on the date the schedule alone would give, *before*
+the holiday rule, so "the 23rd is skipped" means the same thing whether or not
+the holiday was entered; and an override wins over the holiday rule on its
+date. `next_pickup_type` reads `override`.
 
 ## Actions
 
@@ -109,6 +140,51 @@ Setting a cadence of `biweekly` with no anchor is allowed and is not an error.
 It leaves a named gap (`anchor`) that the next-pickup sensor reports, which is
 a schedule that is honestly incomplete rather than one silently given a parity
 nobody chose.
+
+### `waste_collection.set_holidays`
+
+Replaces the holiday list and/or the per-holiday shift. The list is sent
+**whole** — it is the calendar for the year, and sending it whole is how it
+stays equal to that calendar. An empty list clears it; a field left out is not
+changed.
+
+| Field | Required | Value |
+|---|---|---|
+| `holidays` | no | a list of ISO dates |
+| `holiday_shift_days` | no | `0` … `6` |
+
+```yaml
+action: waste_collection.set_holidays
+data:
+  holidays: ["2026-09-07", "2026-11-26", "2026-12-25", "2027-01-01"]
+  holiday_shift_days: 1
+```
+
+A date that will not parse is refused naming the value, never dropped: a
+holiday silently dropped is a route silently not moved. A bare string is
+refused rather than iterated character by character.
+
+### `waste_collection.set_override`
+
+| Field | Required | Value |
+|---|---|---|
+| `stream` | yes | `trash` or `recycling` |
+| `date` | yes | the *scheduled* ISO date |
+| `replacement` | one of | the date it happens instead |
+| `skip` | one of | `true`: it does not happen |
+| `clear` | one of | `true`: forget the override |
+
+```yaml
+action: waste_collection.set_override
+data:
+  stream: recycling
+  date: "2026-12-23"
+  skip: true
+```
+
+Exactly one of `replacement`, `skip` and `clear` — two together contradict and
+are refused, none at all is refused, and a replacement equal to the date is
+refused as a no-op that would sit in the map claiming to be an override.
 
 ## Design
 

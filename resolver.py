@@ -31,6 +31,9 @@ from .const import (
     GAP_ANCHOR,
     GAP_CADENCE,
     GAP_DAY,
+    PICKUP_HOLIDAY,
+    PICKUP_OVERRIDE,
+    PICKUP_REGULAR,
 )
 
 
@@ -77,6 +80,95 @@ def next_pickups(weekday, cadence, anchor, today, count=1):
     return [first + timedelta(days=i * step) for i in range(count)]
 
 
+def week_start(day):
+    """The Monday of the week `day` falls in.
+
+    Monday, because that is the week the holiday rule counts over: a holiday
+    on a Monday delays every route for the rest of that week, and a holiday
+    on a Saturday delays nothing. A Sunday holiday is entered as the Monday it
+    is OBSERVED on -- the calendar says which, and nothing here guesses.
+    """
+    return day - timedelta(days=day.weekday())
+
+
+def holiday_shift(day, holidays, shift_days):
+    """How many days a pickup on `day` moves for the holidays in its week.
+
+    Every holiday in the same Monday-start week ON OR BEFORE the pickup day
+    counts once, so a week with two holidays ahead of Friday's route moves it
+    twice. A holiday later in the week than the pickup has not happened yet
+    when the truck comes and moves nothing.
+    """
+    if not holidays or not shift_days:
+        return 0
+    start = week_start(day)
+    ahead = sum(1 for h in holidays if start <= h <= day)
+    return ahead * shift_days
+
+
+def resolve_pickups(scheduled, holidays, shift_days, overrides, count):
+    """Turn scheduled dates into the pickups that will actually happen.
+
+    Each result is a dict: `date` (when the truck comes), `type` (WHY it is
+    that date -- regular, holiday, override) and `scheduled` (the date the
+    cadence alone would have given, which differs from `date` only when it
+    moved). The list is sorted by resolved date and cut to `count`, so a
+    caller wanting `count` real pickups should hand in more scheduled ones
+    than that: every skip removes one.
+
+    An OVERRIDE WINS OVER THE HOLIDAY RULE, and is keyed on the SCHEDULED
+    date, not the shifted one. A person who says "the 25th is skipped" means
+    the pickup the calendar put on the 25th, whatever day the holiday rule
+    would have moved it to -- keying on the moved date would make the same
+    override land or miss depending on whether the holiday was entered.
+    """
+    holidays = tuple(holidays or ())
+    overrides = dict(overrides or {})
+    out = []
+    for day in scheduled:
+        key = day.isoformat()
+        if key in overrides:
+            replacement = overrides[key]
+            if replacement is None:
+                continue  # skipped: the truck is not coming for this one
+            out.append({"date": replacement, "type": PICKUP_OVERRIDE, "scheduled": day})
+            continue
+        shift = holiday_shift(day, holidays, shift_days)
+        if shift:
+            out.append(
+                {"date": day + timedelta(days=shift), "type": PICKUP_HOLIDAY, "scheduled": day}
+            )
+        else:
+            out.append({"date": day, "type": PICKUP_REGULAR, "scheduled": day})
+    out.sort(key=lambda r: r["date"])
+    return out[:count]
+
+
+def upcoming_pickups(weekday, cadence, anchor, today, count, holidays=(), shift_days=0, overrides=None):
+    """`next_pickups` with the holiday rule and overrides applied, today included.
+
+    Generates enough scheduled dates that every skip and every backward
+    shift still leaves `count` results, then drops anything that resolved to
+    before today: a pickup the calendar put on Monday and a holiday moved to
+    Tuesday is still upcoming on Monday night, and one an override moved
+    EARLIER than today is not.
+    """
+    overrides = overrides or {}
+    skips = sum(1 for v in overrides.values() if v is None)
+    # One extra cycle of headroom on top of the skips, because an override
+    # can move a pickup past the next scheduled one and the cut would
+    # otherwise drop a real date to make room for it.
+    scheduled = next_pickups(weekday, cadence, anchor, today, count + skips + 1)
+    if not scheduled:
+        return []
+    # A pickup scheduled LAST cycle can still be upcoming if a holiday or an
+    # override pushed it past today, so look one cycle back as well.
+    step = 14 if cadence == CADENCE_BIWEEKLY else 7
+    scheduled.insert(0, scheduled[0] - timedelta(days=step))
+    resolved = resolve_pickups(scheduled, holidays, shift_days, overrides, count + 1)
+    return [r for r in resolved if r["date"] >= today][:count]
+
+
 def cart_status(next_pickup, cart_out, today):
     """What the curb cart needs from a person right now.
 
@@ -109,6 +201,42 @@ def weekday_index(name, weekdays):
         return weekdays.index(name)
     except ValueError:
         return None
+
+
+def parse_dates(values):
+    """A list of ISO strings (or dates) to a sorted tuple of dates.
+
+    Anything that will not parse is DROPPED, not defaulted -- the same rule
+    as `parse_anchor`. A holiday that cannot be read is a holiday that does
+    not shift anything, which the person will notice on the day; a holiday
+    silently read as some other date moves a route nobody meant to move.
+    """
+    out = []
+    for value in values or ():
+        day = parse_anchor(value)
+        if day is not None:
+            out.append(day)
+    return tuple(sorted(set(out)))
+
+
+def parse_overrides(mapping):
+    """A stored `{iso: iso | None}` mapping to `{iso: date | None}`.
+
+    A key that will not parse is dropped; a value that will not parse is
+    dropped WITH its key, so a corrupt replacement never turns into a skip.
+    """
+    out = {}
+    for key, value in (mapping or {}).items():
+        day = parse_anchor(key)
+        if day is None:
+            continue
+        if value is None:
+            out[day.isoformat()] = None
+            continue
+        replacement = parse_anchor(value)
+        if replacement is not None:
+            out[day.isoformat()] = replacement
+    return out
 
 
 def parse_anchor(value):

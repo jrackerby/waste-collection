@@ -33,10 +33,17 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_ANCHOR,
     CONF_CADENCE,
+    CONF_HOLIDAY_SHIFT_DAYS,
+    CONF_HOLIDAYS,
     CONF_NAME,
+    CONF_OVERRIDES,
     CONF_STREAM,
     CONF_WEEKDAY,
+    DEFAULT_HOLIDAY_SHIFT_DAYS,
     DOMAIN,
+    PICKUP_HOLIDAY,
+    PICKUP_OVERRIDE,
+    PICKUP_REGULAR,
     STREAMS,
     UPCOMING_COUNT,
     WEEKDAYS,
@@ -44,9 +51,11 @@ from .const import (
 from .resolver import (
     cart_status,
     days_until,
-    next_pickups,
     parse_anchor,
+    parse_dates,
+    parse_overrides,
     schedule_gap,
+    upcoming_pickups,
     weekday_index,
 )
 
@@ -137,27 +146,46 @@ class WasteCoordinator(DataUpdateCoordinator):
     def _schedule(self, stream: str) -> dict[str, Any]:
         return (self.entry.options.get(stream) or {}) if self.entry.options else {}
 
+    def _holidays(self) -> tuple[tuple[date, ...], int]:
+        """The entry-level holiday list and shift, read once per reduction."""
+        options = self.entry.options or {}
+        shift = options.get(CONF_HOLIDAY_SHIFT_DAYS, DEFAULT_HOLIDAY_SHIFT_DAYS)
+        if not isinstance(shift, int) or isinstance(shift, bool):
+            shift = DEFAULT_HOLIDAY_SHIFT_DAYS
+        return parse_dates(options.get(CONF_HOLIDAYS)), shift
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Never raises. There is no subject that can be unreachable here --
         the inputs are this entry's own options and the clock -- so an
         exception would only ever be a bug in the arithmetic, and taking every
         entity unavailable is the worst way to report one."""
         today: date = dt_util.now().date()
+        holidays, shift_days = self._holidays()
+        streams = {s: self._reduce_stream(s, today, holidays, shift_days) for s in STREAMS}
         return {
             "today": today,
-            "streams": {s: self._reduce_stream(s, today) for s in STREAMS},
+            "holidays": holidays,
+            "holiday_shift_days": shift_days,
+            "streams": streams,
+            "household": self._reduce_household(streams),
             "receptacles": self._reduce_receptacles(),
         }
 
-    def _reduce_stream(self, stream: str, today: date) -> dict[str, Any]:
+    def _reduce_stream(
+        self, stream: str, today: date, holidays: tuple[date, ...], shift_days: int
+    ) -> dict[str, Any]:
         cfg = self._schedule(stream)
         weekday = weekday_index(cfg.get(CONF_WEEKDAY), WEEKDAYS)
         cadence = cfg.get(CONF_CADENCE)
         anchor = parse_anchor(cfg.get(CONF_ANCHOR))
+        overrides = parse_overrides(cfg.get(CONF_OVERRIDES))
 
         gap = schedule_gap(weekday, cadence, anchor)
-        upcoming = next_pickups(weekday, cadence, anchor, today, UPCOMING_COUNT)
-        nxt = upcoming[0] if upcoming else None
+        upcoming = upcoming_pickups(
+            weekday, cadence, anchor, today, UPCOMING_COUNT, holidays, shift_days, overrides
+        )
+        head = upcoming[0] if upcoming else None
+        nxt = head["date"] if head else None
         cart_out = bool(self._get(f"stream_{stream}", "cart_out", False))
 
         return {
@@ -166,11 +194,53 @@ class WasteCoordinator(DataUpdateCoordinator):
             "cadence": cadence,
             "anchor": anchor,
             "next_pickup": nxt,
+            # WHY the next date is what it is, and where it moved from. A
+            # regular pickup has `scheduled == date`; the sensor publishes
+            # `shifted_from` only when they differ.
+            "next_pickup_type": head["type"] if head else None,
+            "scheduled": head["scheduled"] if head else None,
             "upcoming": upcoming,
+            "overrides": overrides,
             "days_until": days_until(nxt, today) if nxt else None,
             "cart_out": cart_out,
             "status": cart_status(nxt, cart_out, today),
             "collected": self._get(f"stream_{stream}", "collected"),
+        }
+
+    @staticmethod
+    def _reduce_household(streams: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        """The soonest pickup across every stream, and which streams share it.
+
+        One tile on a wall wants "recycling Thursday, cart is out", not two
+        rows to compare. `is_bin_out` here is ANY cart on that date's streams
+        being out -- a cart at the curb for a different, later date is not
+        this pickup's cart.
+        """
+        dated = {s: r for s, r in streams.items() if r["next_pickup"] is not None}
+        if not dated:
+            return {
+                "next_pickup": None,
+                "streams": [],
+                "days_until": None,
+                "next_pickup_type": None,
+                "is_bin_out": any(r["cart_out"] for r in streams.values()),
+            }
+        soonest = min(r["next_pickup"] for r in dated.values())
+        # Iterate STREAMS' order, not the dict's, so the list reads the same
+        # whichever stream resolved first.
+        on_day = [s for s in STREAMS if s in dated and dated[s]["next_pickup"] == soonest]
+        # Two streams can share a date for different reasons (trash moved
+        # onto recycling's day by a holiday). The type reported is the one a
+        # reader most needs to know about: an override beats the holiday
+        # rule, which beats regular.
+        types = {dated[s]["next_pickup_type"] for s in on_day}
+        kind = next((t for t in (PICKUP_OVERRIDE, PICKUP_HOLIDAY) if t in types), PICKUP_REGULAR)
+        return {
+            "next_pickup": soonest,
+            "streams": on_day,
+            "days_until": dated[on_day[0]]["days_until"],
+            "next_pickup_type": kind,
+            "is_bin_out": any(dated[s]["cart_out"] for s in on_day),
         }
 
     def _reduce_receptacles(self) -> dict[str, dict[str, Any]]:
