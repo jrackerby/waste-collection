@@ -37,4 +37,7 @@ class SetoutDueBinarySensor(StreamEntity, BinarySensorEntity):
             **super().extra_state_attributes,
             "status": row["status"],
             "days_until": row["days_until"],
+            "days_until_pickup": row["days_until"],
+            "next_pickup_type": row["next_pickup_type"],
+            "is_bin_out": row["cart_out"],
         }

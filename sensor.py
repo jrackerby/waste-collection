@@ -22,6 +22,7 @@ async def async_setup_entry(
         entities.append(NextPickupSensor(coordinator, stream))
         entities.append(LastCollectedSensor(coordinator, stream))
     entities.append(ActiveReceptacleCountSensor(coordinator))
+    entities.append(HouseholdNextPickupSensor(coordinator))
     async_add_entities(entities)
 
     # Receptacle entities are added AGAINST THEIR SUBENTRY, so Home Assistant
@@ -72,10 +73,90 @@ class NextPickupSensor(StreamEntity, SensorEntity):
             "gap": row["gap"],
             "weekday": row["weekday"],
             "cadence": row["cadence"],
+            # `days_until` predates `days_until_pickup` and is kept for the
+            # board that reads it; they are one value under two names.
             "days_until": row["days_until"],
+            "days_until_pickup": row["days_until"],
             "date": row["next_pickup"].isoformat() if row["next_pickup"] else None,
-            "upcoming": [d.isoformat() for d in row["upcoming"]],
+            "next_pickup_type": row["next_pickup_type"],
+            "shifted_from": _shifted_from(row),
+            "is_bin_out": row["cart_out"],
+            "upcoming": [r["date"].isoformat() for r in row["upcoming"]],
+            # The same four dates with their reason each, for a surface that
+            # wants to mark the moved ones.
+            "upcoming_detail": [
+                {
+                    "date": r["date"].isoformat(),
+                    "type": r["type"],
+                    "scheduled": r["scheduled"].isoformat(),
+                }
+                for r in row["upcoming"]
+            ],
+            "holidays": [d.isoformat() for d in self.coordinator.data["holidays"]],
+            "overrides": {
+                k: (v.isoformat() if v else None) for k, v in row["overrides"].items()
+            },
         }
+
+
+def _shifted_from(row) -> str | None:
+    """The scheduled date, only when the next pickup is not on it."""
+    if row["next_pickup"] is None or row["scheduled"] is None:
+        return None
+    if row["scheduled"] == row["next_pickup"]:
+        return None
+    return row["scheduled"].isoformat()
+
+
+class HouseholdNextPickupSensor(WasteEntity, SensorEntity):
+    """The soonest pickup of any stream, and which streams it is.
+
+    One entity for the one question a wall tile asks -- what is next, when,
+    and is its cart out -- so a surface does not have to read every stream
+    sensor and pick the minimum itself.
+    """
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_translation_key = "household_next_pickup"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator, "household_next_pickup", "household_next_pickup")
+
+    @property
+    def device_info(self):
+        return _household_device(self.coordinator.entry_id)
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self):
+        return _midday_local(self.coordinator.data["household"]["next_pickup"])
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        row = self.coordinator.data["household"]
+        return {
+            "date": row["next_pickup"].isoformat() if row["next_pickup"] else None,
+            "streams": row["streams"],
+            "days_until_pickup": row["days_until"],
+            "next_pickup_type": row["next_pickup_type"],
+            "is_bin_out": row["is_bin_out"],
+        }
+
+
+def _household_device(entry_id: str):
+    from homeassistant.helpers.device_registry import DeviceInfo
+
+    from .entity import MANUFACTURER
+
+    return DeviceInfo(
+        identifiers={(DOMAIN, entry_id)},
+        name="Waste Collection",
+        manufacturer=MANUFACTURER,
+        model="Household waste",
+    )
 
 
 class LastCollectedSensor(StreamEntity, SensorEntity):
@@ -116,16 +197,7 @@ class ActiveReceptacleCountSensor(WasteEntity, SensorEntity):
 
     @property
     def device_info(self):
-        from homeassistant.helpers.device_registry import DeviceInfo
-
-        from .entity import MANUFACTURER
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, self.coordinator.entry_id)},
-            name="Waste Collection",
-            manufacturer=MANUFACTURER,
-            model="Household waste",
-        )
+        return _household_device(self.coordinator.entry_id)
 
     @property
     def native_value(self) -> int:

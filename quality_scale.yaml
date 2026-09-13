@@ -36,7 +36,7 @@ rules:
   config-flow: done
   config-flow-test-coverage: todo  # needs pytest-homeassistant-custom-component
   dependency-transparency: done  # no third-party requirements at all
-  docs-actions: done  # README.md documents set_schedule and what it refuses
+  docs-actions: done  # README.md documents all three actions and what each refuses
   docs-conditions: done  # none provided
   docs-triggers: done  # none provided
   docs-high-level-description: done  # README.md
@@ -87,7 +87,7 @@ rules:
   parallel-updates: todo  # PARALLEL_UPDATES not declared on any platform
   reauthentication-flow: done  # no credentials exist to expire
   test-coverage: todo
-  # ^ tests/ covers the resolver -- the whole date/cadence layer -- with Home
+  # ^ tests/ covers the resolver -- the whole date/cadence/holiday layer -- with Home
   #   Assistant absent, and the conftest enforces that purity rather than
   #   asserting it. The HA-facing half (coordinator reduction, the four
   #   platforms, the subentry flow) is NOT covered here; validate.yml's

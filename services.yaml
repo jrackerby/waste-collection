@@ -40,3 +40,51 @@ set_schedule:
       example: "2026-09-04"
       selector:
         date:
+
+set_holidays:
+  fields:
+    holidays:
+      required: false
+      example: '["2026-11-26", "2026-12-25", "2027-01-01"]'
+      selector:
+        object:
+    holiday_shift_days:
+      required: false
+      example: 1
+      selector:
+        number:
+          min: 0
+          max: 6
+          mode: box
+
+set_override:
+  fields:
+    stream:
+      required: true
+      example: trash
+      selector:
+        select:
+          translation_key: stream
+          options:
+            - trash
+            - recycling
+    date:
+      required: true
+      example: "2026-12-23"
+      selector:
+        date:
+    replacement:
+      required: false
+      example: "2026-12-24"
+      selector:
+        date:
+    skip:
+      required: false
+      example: false
+      selector:
+        boolean:
+    clear:
+      required: false
+      example: false
+      selector:
+        boolean:

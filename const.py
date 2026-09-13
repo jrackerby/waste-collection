@@ -55,6 +55,30 @@ CONF_ANCHOR = "anchor"
 CONF_ROOM = "room"
 CONF_NAME = "name"
 
+# Holiday shifting is ENTRY-LEVEL, not per stream: a municipal holiday moves
+# every route in the house by the same rule, so it is stored once beside the
+# stream keys rather than copied into each. Overrides ARE per stream -- a
+# skipped recycling week says nothing about trash.
+CONF_HOLIDAYS = "holidays"
+CONF_HOLIDAY_SHIFT_DAYS = "holiday_shift_days"
+CONF_OVERRIDES = "overrides"
+CONF_DATE = "date"
+CONF_REPLACEMENT = "replacement"
+CONF_SKIP = "skip"
+CONF_CLEAR = "clear"
+
+# How far a pickup moves for each holiday earlier in its week. One day is the
+# rule nearly every municipal calendar publishes; it is a setting because
+# "nearly" is not "every".
+DEFAULT_HOLIDAY_SHIFT_DAYS = 1
+
+# Why the next pickup falls on the date it does. On the entity so a surface
+# can say "moved for the holiday" instead of leaving a reader to work out why
+# Thursday is not Wednesday.
+PICKUP_REGULAR = "regular"
+PICKUP_HOLIDAY = "holiday"
+PICKUP_OVERRIDE = "override"
+
 SUBENTRY_RECEPTACLE = "receptacle"
 
 # How many upcoming dates the next-pickup sensor carries as an attribute.

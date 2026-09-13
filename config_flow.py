@@ -19,13 +19,22 @@ from .const import (
     CADENCES,
     CONF_ANCHOR,
     CONF_CADENCE,
+    CONF_HOLIDAY_SHIFT_DAYS,
+    CONF_HOLIDAYS,
     CONF_NAME,
     CONF_STREAM,
     CONF_WEEKDAY,
+    DEFAULT_HOLIDAY_SHIFT_DAYS,
     DOMAIN,
     RECEPTACLE_STREAMS,
     SUBENTRY_RECEPTACLE,
     WEEKDAYS,
+)
+from .schedule_options import (
+    MAX_HOLIDAY_SHIFT_DAYS,
+    ScheduleValueError,
+    validate_holidays,
+    validate_shift_days,
 )
 
 # EVERY SCHEDULE FIELD IS OPTIONAL, and that is deliberate. An unset pickup
@@ -61,6 +70,34 @@ def _stream_schema(defaults: dict[str, Any]) -> vol.Schema:
             vol.Optional(
                 CONF_ANCHOR, description={"suggested_value": defaults.get(CONF_ANCHOR)}
             ): selector.DateSelector(),
+        }
+    )
+
+
+def _holidays_schema(options: dict[str, Any]) -> vol.Schema:
+    """The entry-level holiday list and shift.
+
+    A multi-value TEXT selector rather than a date selector: the date
+    selector is single-valued, and a list of ten holidays as ten steps is a
+    form nobody finishes. The strings are validated by the same pure module
+    the action uses, so a typo is refused with the field named rather than
+    stored as a holiday that never shifts anything.
+    """
+    return vol.Schema(
+        {
+            vol.Optional(
+                CONF_HOLIDAYS,
+                description={"suggested_value": list(options.get(CONF_HOLIDAYS) or [])},
+            ): selector.TextSelector(selector.TextSelectorConfig(multiple=True)),
+            vol.Optional(
+                CONF_HOLIDAY_SHIFT_DAYS,
+                default=options.get(CONF_HOLIDAY_SHIFT_DAYS, DEFAULT_HOLIDAY_SHIFT_DAYS),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0, max=MAX_HOLIDAY_SHIFT_DAYS, step=1,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
         }
     )
 
@@ -119,11 +156,40 @@ class WasteCollectionOptionsFlow(OptionsFlow):
     async def async_step_recycling(self, user_input=None):
         if user_input is not None:
             self._collected["recycling"] = user_input
-            merged = {**self.config_entry.options, **self._collected}
-            return self.async_create_entry(title="", data=merged)
+            return await self.async_step_holidays()
         return self.async_show_form(
             step_id="recycling",
             data_schema=_stream_schema(self.config_entry.options.get("recycling", {})),
+        )
+
+    async def async_step_holidays(self, user_input=None):
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                holidays = validate_holidays(user_input.get(CONF_HOLIDAYS))
+                shift = validate_shift_days(
+                    user_input.get(CONF_HOLIDAY_SHIFT_DAYS, DEFAULT_HOLIDAY_SHIFT_DAYS)
+                )
+            except ScheduleValueError as err:
+                errors[str(err.field)] = "unknown_value"
+            else:
+                # Each stream step returned only its own weekday/cadence/
+                # anchor; a stream's OVERRIDES live under the same key and
+                # were not on that form, so carry them across or the form
+                # deletes them.
+                merged = dict(self.config_entry.options)
+                for stream, fields in self._collected.items():
+                    merged[stream] = {**(merged.get(stream) or {}), **fields}
+                    for gone in (CONF_WEEKDAY, CONF_CADENCE, CONF_ANCHOR):
+                        if gone not in fields:
+                            merged[stream].pop(gone, None)
+                merged[CONF_HOLIDAYS] = holidays
+                merged[CONF_HOLIDAY_SHIFT_DAYS] = shift
+                return self.async_create_entry(title="", data=merged)
+        return self.async_show_form(
+            step_id="holidays",
+            data_schema=_holidays_schema(self.config_entry.options),
+            errors=errors,
         )
 
 
