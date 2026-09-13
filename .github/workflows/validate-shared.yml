@@ -30,5 +30,4 @@ jobs:
     with:
       domain: "waste_collection"
       public: true
-      test-requirements: ""
       test-command: "./tools/run_tests.sh -q"
