@@ -1,0 +1,34 @@
+name: validate-shared
+
+# Same posture as household-state's: a repo that only validates on push goes
+# quietly stale between commits, and these repos sit untouched for months.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: "0 7 * * 2"
+  workflow_dispatch:
+
+env:
+  DOMAIN: waste_collection
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # hassfest, hacs and the shared tests/imports jobs run in
+  # jrackerby/gha-workflows validate-integration.yml (workflow_call);
+  # master's required contexts are "validate / <job>" (jrackerby/HA#821).
+  validate:
+    uses: jrackerby/gha-workflows/.github/workflows/validate-integration.yml@master
+    with:
+      domain: "waste_collection"
+      public: true
+      test-requirements: ""
+      test-command: "./tools/run_tests.sh -q"
